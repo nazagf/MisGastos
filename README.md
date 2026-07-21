@@ -1,12 +1,9 @@
-# MisGastos — Django
+# MisGastos
 
-Fork del dashboard de gastos con **front y back en Django**. Django sirve el
-frontend (mismo diseño "estado de cuenta") como template + estáticos, y la API
-en `/api/*` sobre PostgreSQL vía el ORM de Django.
-
-Es un fork independiente del proyecto Express original: usa su propia base de
-datos (`misgastos_django`) en el mismo contenedor Postgres, así que no toca los
-datos del proyecto anterior.
+Dashboard de finanzas personales con **front y back en Django**. Registra gastos,
+maneja presupuestos por mes y muestra tendencias, con persistencia en PostgreSQL
+vía el ORM de Django. El frontend (diseño "estado de cuenta") se sirve como
+template + estáticos, y la API vive en `/api/*`.
 
 ## Stack
 - Django 6 (templates + vistas API con JSON) + ORM/migraciones/admin
@@ -18,7 +15,7 @@ datos del proyecto anterior.
 Requisito: el contenedor `postgres_db` corriendo (`docker start postgres_db`).
 
 ```bash
-cd MisGastos-Django
+cd MisGastos
 source venv/bin/activate          # el venv ya está creado con las deps
 python manage.py migrate          # crea las tablas (idempotente)
 python manage.py runserver        # http://127.0.0.1:8000
