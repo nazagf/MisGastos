@@ -1,5 +1,6 @@
 from Gastos.models import Presupuesto
 from Gastos.repositories.presupuesto_repository import PresupuestoRepository
+from Gastos.validation import budget_data
 
 
 class PresupuestoService:
@@ -14,12 +15,9 @@ class PresupuestoService:
         }
 
     def guardar(self, datos):
-        presupuesto = self.presupuesto_repo.get_by_anio_mes(datos['yearMonth'])
-        if presupuesto is None:
-            presupuesto = Presupuesto(AnioMes=datos['yearMonth'])
-        presupuesto.Total = datos['total']
-        presupuesto.Categorias = datos.get('categories', {})
-        self.presupuesto_repo.save(presupuesto)
+        fields = budget_data(datos)
+        key = fields.pop('AnioMes')
+        presupuesto, _ = Presupuesto.objects.update_or_create(AnioMes=key, defaults=fields)
         return {'total': float(presupuesto.Total), 'categories': presupuesto.Categorias}
 
     def eliminar_todos(self):

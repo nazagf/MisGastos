@@ -126,8 +126,8 @@
           <div class="relative max-w-xs">
             <span class="absolute left-3 top-2 text-text-muted font-bold">$</span>
             <input type="number" id="budget-total"
-              value="${budgets.total || ''}"
-              placeholder="Ej: 500000" min="0" step="1000"
+              value="${Utils.escapeHTML(budgets.total || '')}"
+              placeholder="Ej: 500000" min="0" step="0.01"
               class="w-full pl-8 pr-3 py-2 bg-white border border-border rounded-md focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent !m-0">
           </div>
           <p class="text-xs text-text-muted mt-2">Opcional. Si no ingresás un total, se calculará sumando las categorías.</p>
@@ -144,8 +144,8 @@
               <div class="relative">
                 <span class="absolute left-3 top-2 text-text-muted">$</span>
                 <input type="number" id="budget-cat-${key}"
-                  value="${(budgets.categories && budgets.categories[key]) || ''}"
-                  placeholder="0" min="0" step="1000"
+                  value="${Utils.escapeHTML((budgets.categories && budgets.categories[key]) || '')}"
+                  placeholder="0" min="0" step="0.01"
                   class="w-full pl-8 pr-3 py-2 bg-white border border-border rounded-md focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent !m-0">
               </div>
             </div>
@@ -167,11 +167,13 @@
     });
 
     // Bind clear
-    document.getElementById('btn-clear-budgets').addEventListener('click', () => {
-      const budgetData = { total: 0, categories: {} };
-      Storage.setBudgets(month, year, budgetData);
-      Utils.showToast('Presupuestos limpiados', 'info');
-      render(month, year);
+    document.getElementById('btn-clear-budgets').addEventListener('click', event => {
+      Utils.runAction(event.currentTarget, async () => {
+        const budgetData = { total: 0, categories: {} };
+        await Storage.setBudgets(month, year, budgetData);
+        Utils.showToast('Presupuestos limpiados', 'info');
+        render(month, year);
+      });
     });
   }
 
@@ -179,19 +181,22 @@
    * Save budgets from form
    */
   function saveBudgets(month, year) {
-    const total = parseInt(document.getElementById('budget-total').value) || 0;
+    const total = Number(document.getElementById('budget-total').value);
     const categories = {};
 
     Object.keys(Utils.CATEGORIES).forEach(key => {
       const input = document.getElementById(`budget-cat-${key}`);
       if (input && input.value) {
-        categories[key] = parseInt(input.value) || 0;
+        categories[key] = Number(input.value);
       }
     });
 
-    Storage.setBudgets(month, year, { total, categories });
-    Utils.showToast('Presupuestos guardados correctamente', 'success');
-    renderBudgetOverview(month, year);
+    const effectiveTotal = total || Object.values(categories).reduce((sum, value) => sum + value, 0);
+    Utils.runAction(document.getElementById('btn-save-budgets'), async () => {
+      await Storage.setBudgets(month, year, { total: Math.round(effectiveTotal * 100) / 100, categories });
+      Utils.showToast('Presupuestos guardados correctamente', 'success');
+      render(month, year);
+    });
   }
 
   // Export

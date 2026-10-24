@@ -19,10 +19,15 @@
     currentYear = year;
 
     // Load data from PostgreSQL server first
-    await Storage.loadDataFromServer();
-
-    // Initialize sample data if first run
-    await Storage.initSampleData();
+    try {
+      await Storage.loadDataFromServer();
+    } catch (error) {
+      document.getElementById('load-message').textContent = error.message;
+      document.getElementById('retry-load').hidden = false;
+      return;
+    }
+    document.getElementById('load-status').hidden = true;
+    document.querySelector('main').hidden = false;
 
     // Setup navigation
     setupNavigation();
@@ -235,5 +240,8 @@
 
   // Initialize when DOM is ready
   document.addEventListener('DOMContentLoaded', init);
+  window.addEventListener('pageshow', event => {
+    if (event.persisted) window.location.reload();
+  });
 
 })();

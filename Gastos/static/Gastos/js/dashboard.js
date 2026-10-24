@@ -35,8 +35,8 @@
     const budgetBar = document.getElementById('kpi-budget-bar');
     const budgetText = document.getElementById('kpi-budget-text');
     if (budgets.total > 0 && budgetBar && budgetText) {
-      const pct = Math.min((summary.total / budgets.total) * 100, 100);
-      budgetBar.style.width = pct + '%';
+      const pct = (summary.total / budgets.total) * 100;
+      budgetBar.style.width = Math.min(pct, 100) + '%';
       budgetBar.className = 'budget-bar-fill ' + (pct > 100 ? 'danger' : pct > 80 ? 'warning' : 'ok');
       budgetText.textContent = `${Math.round((summary.total / budgets.total) * 100)}% del presupuesto`;
       budgetText.className = 'kpi-change ' + (pct > 100 ? 'negative' : pct > 80 ? 'negative' : 'positive');
@@ -372,8 +372,8 @@
               <span class="text-lg">${cat.icon}</span>
             </div>
             <div class="truncate pr-4">
-              <div class="text-sm font-semibold text-text-main truncate">${exp.description}</div>
-              <div class="text-xs text-text-muted mt-0.5">${Utils.formatDateShort(exp.date)} · ${Utils.CATEGORIES[exp.category].name}</div>
+              <div class="text-sm font-semibold text-text-main truncate">${Utils.escapeHTML(exp.description)}</div>
+              <div class="text-xs text-text-muted mt-0.5">${Utils.formatDateShort(exp.date)} · ${cat.name}</div>
             </div>
           </div>
           <div class="text-sm font-bold font-mono text-text-main flex-shrink-0">-${Utils.formatCurrency(exp.amount)}</div>

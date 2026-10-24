@@ -1,5 +1,6 @@
 from Gastos.models import Configuracion
 from Gastos.repositories.configuracion_repository import ConfiguracionRepository
+from Gastos.validation import object_value
 
 CLAVE_USUARIO = 'user_settings'
 
@@ -16,7 +17,7 @@ class ConfiguracionService:
         config = self.config_repo.get_by_clave(CLAVE_USUARIO)
         if config is None:
             config = Configuracion(Clave=CLAVE_USUARIO)
-        config.Valor = datos.get('settings', {})
+        config.Valor = object_value(object_value(datos).get('settings', {}))
         self.config_repo.save(config)
         return config.Valor
 

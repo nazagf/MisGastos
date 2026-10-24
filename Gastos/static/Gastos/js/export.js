@@ -105,7 +105,7 @@
           <p class="text-sm text-text-muted mb-6 flex-1">
             Cargá datos de ejemplo para probar la aplicación.
           </p>
-          <button class="btn-secondary w-full flex items-center justify-center" onclick="ExportImport.loadSampleData()">
+          <button class="btn-secondary w-full flex items-center justify-center" id="btn-load-demo" onclick="ExportImport.loadSampleData()">
             <span class="material-symbols-outlined mr-2 text-[20px]">auto_awesome</span> Cargar Demo
           </button>
         </div>
@@ -116,116 +116,87 @@
   /**
    * Export expenses as CSV
    */
+  function csvCell(value) {
+    const text = String(value ?? '');
+    // Evita que una descripción se interprete como fórmula al abrirla en Excel.
+    const safe = /^[=+@\-\t\r]/.test(text) ? `'${text}` : text;
+    return `"${safe.replace(/"/g, '""')}"`;
+  }
+
   function exportCSV() {
     const expenses = Storage.getAllExpenses();
-    if (expenses.length === 0) {
-      Utils.showToast('No hay gastos para exportar', 'warning');
-      return;
-    }
-
-    const headers = ['Fecha', 'Descripción', 'Monto', 'Categoría', 'Medio de Pago', 'Notas'];
-    const rows = expenses.map(exp => [
-      exp.date,
-      `"${exp.description.replace(/"/g, '""')}"`,
-      exp.amount,
-      Utils.CATEGORIES[exp.category]?.name || exp.category,
-      Utils.PAYMENT_METHODS[exp.paymentMethod]?.name || exp.paymentMethod,
-      `"${(exp.notes || '').replace(/"/g, '""')}"`
-    ]);
-
-    const csv = [headers.join(','), ...rows.map(r => r.join(','))].join('\n');
-    downloadFile(csv, `misgastos_${formatFileDate()}.csv`, 'text/csv');
+    if (!expenses.length) return Utils.showToast('No hay gastos para exportar', 'warning');
+    const rows = [['Fecha', 'Descripción', 'Monto', 'Categoría', 'Medio de Pago', 'Notas'],
+      ...expenses.map(exp => [exp.date, exp.description, exp.amount,
+        Utils.CATEGORIES[exp.category]?.name || exp.category,
+        Utils.PAYMENT_METHODS[exp.paymentMethod]?.name || exp.paymentMethod, exp.notes || ''])];
+    const csv = rows.map(row => row.map(csvCell).join(',')).join('\r\n');
+    downloadFile('\uFEFF' + csv, `misgastos_${formatFileDate()}.csv`, 'text/csv;charset=utf-8');
     Utils.showToast('CSV exportado correctamente', 'success');
   }
 
-  /**
-   * Import expenses from CSV
-   */
-  function importCSV(input) {
-    const file = input.files[0];
-    if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        const text = e.target.result;
-        const lines = text.split('\n').filter(l => l.trim());
-
-        if (lines.length < 2) {
-          Utils.showToast('El archivo CSV está vacío', 'error');
-          return;
-        }
-
-        // Skip header
-        let imported = 0;
-        const categoryMap = {};
-        Object.entries(Utils.CATEGORIES).forEach(([key, cat]) => {
-          categoryMap[cat.name.toLowerCase()] = key;
-        });
-
-        const paymentMap = {};
-        Object.entries(Utils.PAYMENT_METHODS).forEach(([key, pm]) => {
-          paymentMap[pm.name.toLowerCase()] = key;
-        });
-
-        for (let i = 1; i < lines.length; i++) {
-          const cols = parseCSVLine(lines[i]);
-          if (cols.length < 4) continue;
-
-          const date = cols[0]?.trim();
-          const description = cols[1]?.trim();
-          const amount = parseFloat(cols[2]);
-          const categoryName = cols[3]?.trim().toLowerCase();
-          const paymentName = cols[4]?.trim().toLowerCase() || 'efectivo';
-          const notes = cols[5]?.trim() || '';
-
-          if (!date || !description || isNaN(amount)) continue;
-
-          const category = categoryMap[categoryName] || 'otros';
-          const paymentMethod = paymentMap[paymentName] || 'efectivo';
-
-          Storage.addExpense({ date, description, amount, category, paymentMethod, notes });
-          imported++;
-        }
-
-        Utils.showToast(`Se importaron ${imported} gastos correctamente`, 'success');
-        window.App.refreshCurrentView();
-        render();
-      } catch (err) {
-        Utils.showToast('Error al leer el archivo CSV', 'error');
-        console.error(err);
-      }
-    };
-    reader.readAsText(file);
-    input.value = '';
+  function parseCSV(text) {
+    const rows = [];
+    let row = [], field = '', quoted = false, closedQuote = false;
+    text = text.replace(/^\uFEFF/, '');
+    function finishField() { row.push(field); field = ''; closedQuote = false; }
+    function finishRow() {
+      finishField();
+      if (row.some(cell => cell.trim())) rows.push(row);
+      row = [];
+    }
+    for (let i = 0; i < text.length; i++) {
+      const char = text[i];
+      if (quoted) {
+        if (char === '"' && text[i + 1] === '"') { field += '"'; i++; }
+        else if (char === '"') { quoted = false; closedQuote = true; }
+        else field += char;
+      } else if (char === ',') finishField();
+      else if (char === '\n' || char === '\r') {
+        if (char === '\r' && text[i + 1] === '\n') i++;
+        finishRow();
+      } else if (closedQuote) {
+        throw new Error('El CSV contiene caracteres después del cierre de comillas.');
+      } else if (char === '"') {
+        if (field) throw new Error('El CSV contiene comillas sin escapar.');
+        quoted = true;
+      } else field += char;
+    }
+    if (quoted) throw new Error('El CSV tiene comillas sin cerrar.');
+    if (field || row.length || closedQuote) finishRow();
+    return rows;
   }
 
-  /**
-   * Parse a CSV line handling quoted fields
-   */
-  function parseCSVLine(line) {
-    const result = [];
-    let current = '';
-    let inQuotes = false;
-
-    for (let i = 0; i < line.length; i++) {
-      const char = line[i];
-      if (char === '"') {
-        if (inQuotes && line[i + 1] === '"') {
-          current += '"';
-          i++;
-        } else {
-          inQuotes = !inQuotes;
-        }
-      } else if (char === ',' && !inQuotes) {
-        result.push(current);
-        current = '';
-      } else {
-        current += char;
+  async function importCSV(input) {
+    const file = input.files[0];
+    if (!file) return;
+    await Utils.runAction(input, async () => {
+      if (file.size > 2 * 1024 * 1024) throw new Error('El archivo no puede superar 2 MB.');
+      const rows = parseCSV(await file.text());
+      if (rows.length < 2) throw new Error('El archivo CSV está vacío.');
+      const normalize = value => value.trim().toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+      const categoryMap = Object.fromEntries(Object.entries(Utils.CATEGORIES).flatMap(([key, cat]) =>
+        [[normalize(cat.name), key], [key, key]]));
+      const paymentMap = Object.fromEntries(Object.entries(Utils.PAYMENT_METHODS).flatMap(([key, method]) =>
+        [[normalize(method.name), key], [key, key]]));
+      const headers = rows[0].map(normalize);
+      if (headers[0] !== 'fecha' || headers[1] !== 'descripcion' || headers[2] !== 'monto') {
+        throw new Error('El CSV debe comenzar con Fecha, Descripción y Monto.');
       }
-    }
-    result.push(current);
-    return result;
+      const expenses = rows.slice(1).map((row, index) => {
+        if (row.length < 4 || row.length > 6) throw new Error(`Fila ${index + 2}: columnas inválidas.`);
+        const category = categoryMap[normalize(row[3])];
+        const paymentMethod = paymentMap[normalize(row[4] || 'efectivo')];
+        if (!category || !paymentMethod) throw new Error(`Fila ${index + 2}: categoría o medio de pago desconocido.`);
+        return { id: Utils.generateId(), date: row[0].trim(), description: row[1].trim(),
+          amount: row[2].trim(), category, paymentMethod, notes: row[5] || '' };
+      });
+      await Storage.importAllData({ expenses }, 'merge');
+      Utils.showToast(`Se importaron ${expenses.length} gastos correctamente`, 'success');
+      window.App.refreshCurrentView();
+      render();
+    });
+    input.value = '';
   }
 
   /**
@@ -241,24 +212,23 @@
   /**
    * Import data from JSON backup
    */
-  function importJSON(input) {
+  async function importJSON(input) {
     const file = input.files[0];
     if (!file) return;
-
-    const reader = new FileReader();
-    reader.onload = function(e) {
-      try {
-        const data = JSON.parse(e.target.result);
-        Storage.importAllData(data);
-        Utils.showToast(`Backup restaurado: ${data.expenses.length} gastos cargados`, 'success');
-        window.App.refreshCurrentView();
-        render();
-      } catch (err) {
-        Utils.showToast('Error al importar el backup: formato inválido', 'error');
-        console.error(err);
-      }
-    };
-    reader.readAsText(file);
+    if (!window.confirm('¿Reemplazar todos tus datos con este backup? Exportá una copia antes de continuar.')) {
+      input.value = '';
+      return;
+    }
+    await Utils.runAction(input, async () => {
+      if (file.size > 2 * 1024 * 1024) throw new Error('El archivo no puede superar 2 MB.');
+      let data;
+      try { data = JSON.parse(await file.text()); }
+      catch { throw new Error('El archivo no contiene un JSON válido.'); }
+      await Storage.importAllData(data);
+      Utils.showToast(`Backup restaurado: ${data.expenses.length} gastos cargados`, 'success');
+      window.App.refreshCurrentView();
+      render();
+    });
     input.value = '';
   }
 
@@ -293,12 +263,14 @@
       <button class="btn btn-danger" id="btn-confirm-clear">Sí, Borrar Todo</button>
     `;
 
-    document.getElementById('btn-confirm-clear').addEventListener('click', () => {
-      Storage.clearAllData();
-      Utils.showToast('Todos los datos fueron eliminados', 'success');
-      window.App.closeModal();
-      window.App.refreshCurrentView();
-      render();
+    document.getElementById('btn-confirm-clear').addEventListener('click', event => {
+      Utils.runAction(event.currentTarget, async () => {
+        await Storage.clearAllData();
+        Utils.showToast('Todos los datos fueron eliminados', 'success');
+        window.App.closeModal();
+        window.App.refreshCurrentView();
+        render();
+      });
     });
 
     overlay.classList.add('show');
@@ -307,12 +279,14 @@
   /**
    * Load sample data
    */
-  function loadSampleData() {
-    Storage.clearAllData();
-    Storage.initSampleData();
-    Utils.showToast('Datos de ejemplo cargados', 'success');
-    window.App.refreshCurrentView();
-    render();
+  async function loadSampleData() {
+    if (!window.confirm('Los datos de ejemplo reemplazarán tus gastos actuales. ¿Continuar?')) return;
+    await Utils.runAction(document.getElementById('btn-load-demo'), async () => {
+      await Storage.initSampleData();
+      Utils.showToast('Datos de ejemplo cargados', 'success');
+      window.App.refreshCurrentView();
+      render();
+    });
   }
 
   /**
@@ -341,6 +315,7 @@
   // Export
   window.ExportImport = {
     render,
+    parseCSV,
     exportCSV,
     importCSV,
     exportJSON,

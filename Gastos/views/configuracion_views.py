@@ -1,18 +1,15 @@
-from django.http import JsonResponse, HttpResponse
-from django.views.decorators.csrf import csrf_exempt
+from django.http import JsonResponse
 
 from Gastos.services import ConfiguracionService
 from .core_views import leer_json
+from .api import api_endpoint
 
 configuracion_service = ConfiguracionService()
 
 
-@csrf_exempt
+@api_endpoint(['GET', 'POST'])
 def settings_view(request):
     if request.method == 'GET':
         return JsonResponse(configuracion_service.obtener())
 
-    if request.method == 'POST':
-        return JsonResponse(configuracion_service.guardar(leer_json(request)))
-
-    return HttpResponse(status=405)
+    return JsonResponse(configuracion_service.guardar(leer_json(request)))

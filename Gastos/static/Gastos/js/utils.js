@@ -45,8 +45,8 @@
     return new Intl.NumberFormat('es-AR', {
       style: 'currency',
       currency: 'ARS',
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
     }).format(amount);
   }
 
@@ -95,7 +95,25 @@
    * Generate a unique ID
    */
   function generateId() {
-    return Date.now().toString(36) + Math.random().toString(36).substring(2, 8);
+    return crypto.randomUUID();
+  }
+
+  function escapeHTML(value) {
+    return String(value ?? '').replace(/[&<>"']/g, char => ({
+      '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+    })[char]);
+  }
+
+  async function runAction(button, action) {
+    if (button?.disabled) return;
+    if (button) button.disabled = true;
+    try {
+      await action();
+    } catch (error) {
+      showToast(error.message || 'No se pudo completar la operación.', 'error');
+    } finally {
+      if (button) button.disabled = false;
+    }
   }
 
   /**
@@ -128,7 +146,11 @@
 
     const toast = document.createElement('div');
     toast.className = `toast ${type}`;
-    toast.innerHTML = `<span>${icons[type] || icons.info}</span><span>${message}</span>`;
+    const icon = document.createElement('span');
+    icon.textContent = icons[type] || icons.info;
+    const text = document.createElement('span');
+    text.textContent = message;
+    toast.append(icon, text);
     container.appendChild(toast);
 
     setTimeout(() => {
@@ -162,6 +184,8 @@
 
   // Export to global scope
   window.Utils = {
+    escapeHTML,
+    runAction,
     CATEGORIES,
     PAYMENT_METHODS,
     MONTH_NAMES,

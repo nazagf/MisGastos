@@ -1,23 +1,25 @@
 """Configuración de Django para el proyecto MisGastos."""
 import os
 from pathlib import Path
-from urllib.parse import urlparse, unquote
+from django.core.exceptions import ImproperlyConfigured
+
+from .config import database_config, load_env
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-# --- Carga liviana de .env (sin dependencias externas) ---
-_env_path = BASE_DIR / '.env'
-if _env_path.exists():
-    for _line in _env_path.read_text().splitlines():
-        _line = _line.strip()
-        if not _line or _line.startswith('#') or '=' not in _line:
-            continue
-        _k, _v = _line.split('=', 1)
-        os.environ.setdefault(_k.strip(), _v.strip())
+load_env(Path(os.environ.get('DJANGO_ENV_FILE', BASE_DIR / '.env')), os.environ)
 
-SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', 'dev-insecure-change-me')
 DEBUG = os.environ.get('DJANGO_DEBUG', 'False') == 'True'
-ALLOWED_HOSTS = ['*']
+SECRET_KEY = os.environ.get('DJANGO_SECRET_KEY', '')
+if not SECRET_KEY:
+    raise ImproperlyConfigured('Definí DJANGO_SECRET_KEY antes de iniciar MisGastos.')
+if not DEBUG and (len(SECRET_KEY) < 50 or SECRET_KEY.startswith(('dev-', 'django-insecure-'))):
+    raise ImproperlyConfigured('DJANGO_SECRET_KEY debe ser una clave privada de al menos 50 caracteres.')
+ALLOWED_HOSTS = [host.strip() for host in os.environ.get(
+    'DJANGO_ALLOWED_HOSTS', 'localhost,127.0.0.1' if DEBUG else ''
+).split(',') if host.strip()]
+if not ALLOWED_HOSTS or '*' in ALLOWED_HOSTS:
+    raise ImproperlyConfigured('Definí DJANGO_ALLOWED_HOSTS con los hosts concretos de la aplicación.')
 
 INSTALLED_APPS = [
     'django.contrib.admin',
@@ -58,25 +60,17 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'Proyecto.wsgi.application'
 
-# --- Base de datos: se lee de DATABASE_URL (contenedor Postgres, DB propia) ---
-_db = urlparse(os.environ['DATABASE_URL'])
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': unquote(_db.path.lstrip('/')),
-        'USER': unquote(_db.username or ''),
-        'PASSWORD': unquote(_db.password or ''),
-        'HOST': _db.hostname or 'localhost',
-        'PORT': _db.port or 5432,
-    }
-}
+DATABASES = {'default': database_config(os.environ.get('DATABASE_URL', ''))}
 
 AUTH_PASSWORD_VALIDATORS = [
+    {'NAME': 'django.contrib.auth.password_validation.UserAttributeSimilarityValidator'},
     {'NAME': 'django.contrib.auth.password_validation.MinimumLengthValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.CommonPasswordValidator'},
+    {'NAME': 'django.contrib.auth.password_validation.NumericPasswordValidator'},
 ]
 
 LANGUAGE_CODE = 'es-ar'
-TIME_ZONE = 'America/Argentina/Cordoba'
+TIME_ZONE = 'America/Argentina/Buenos_Aires'
 USE_I18N = True
 USE_TZ = True
 
@@ -84,3 +78,20 @@ STATIC_URL = 'static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+LOGIN_URL = 'login'
+LOGIN_REDIRECT_URL = 'inicio'
+LOGOUT_REDIRECT_URL = 'login'
+SESSION_COOKIE_HTTPONLY = True
+SESSION_COOKIE_SECURE = not DEBUG
+CSRF_COOKIE_SECURE = not DEBUG
+SECURE_SSL_REDIRECT = not DEBUG
+SECURE_HSTS_SECONDS = int(os.environ.get('DJANGO_HSTS_SECONDS', '3600' if not DEBUG else '0'))
+# Sólo habilitar detrás de un proxy que sobrescriba X-Forwarded-Proto.
+if os.environ.get('DJANGO_BEHIND_PROXY', 'False') == 'True':
+    SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+CSRF_TRUSTED_ORIGINS = [origin.strip() for origin in os.environ.get(
+    'DJANGO_CSRF_TRUSTED_ORIGINS', ''
+).split(',') if origin.strip()]
+CSRF_FAILURE_VIEW = 'Gastos.views.core_views.csrf_failure'
+DATA_UPLOAD_MAX_MEMORY_SIZE = 2 * 1024 * 1024

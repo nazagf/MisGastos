@@ -1,0 +1,3 @@
+# Tratar los assets estáticos del frontend (JS/CSS) como "vendored" para que
+# GitHub Linguist detecte el proyecto por lo que es: Python / Django.
+Gastos/static/** linguist-vendored

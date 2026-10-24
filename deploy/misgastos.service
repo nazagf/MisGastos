@@ -1,0 +1,21 @@
+[Unit]
+Description=MisGastos Django (Gunicorn)
+After=network.target
+
+[Service]
+User=misgastos
+Group=misgastos
+WorkingDirectory=/srv/misgastos
+EnvironmentFile=/srv/misgastos/.env
+Environment=PYTHONDONTWRITEBYTECODE=1
+ExecStart=/srv/misgastos/venv/bin/gunicorn Proyecto.wsgi:application --bind 127.0.0.1:8010 --workers 1 --threads 2 --timeout 60 --access-logfile - --error-logfile -
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+UMask=0027
+
+[Install]
+WantedBy=multi-user.target

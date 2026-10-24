@@ -1,6 +1,17 @@
 venv/
+.venv/
 __pycache__/
 *.pyc
 .env
+.env.*
+!.env.example
+!.env.production.example
+node_modules/
+.coverage
+htmlcov/
+*.sqlite3
+backups/
+*.sql
+*.dump
 staticfiles/
 db.sqlite3

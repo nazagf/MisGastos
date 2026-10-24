@@ -27,7 +27,7 @@
       <div class="flex flex-col sm:flex-row gap-4 w-full">
         <div class="flex-1 relative">
           <span class="material-symbols-outlined absolute left-3 top-2.5 text-text-muted text-[18px]">search</span>
-          <input type="text" id="expense-search" class="w-full pl-10 pr-4 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent" placeholder="Buscar gastos..." value="${currentFilters.search}">
+          <input type="text" id="expense-search" class="w-full pl-10 pr-4 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent" placeholder="Buscar gastos..." value="${Utils.escapeHTML(currentFilters.search)}">
         </div>
         <div class="flex gap-4 w-full sm:w-auto">
           <select id="filter-category" class="w-full sm:w-48 px-3 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent">
@@ -39,7 +39,7 @@
           <select id="filter-payment" class="w-full sm:w-48 px-3 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent">
             <option value="">Todos los medios</option>
             ${Object.entries(Utils.PAYMENT_METHODS).map(([key, pm]) =>
-              `<option value="${key}" ${currentFilters.paymentMethod === key ? 'selected' : ''}>${pm.icon} ${pm.name}</option>`
+              `<option value="${key}" ${currentFilters.paymentMethod === key ? 'selected' : ''}>${pm.icon} ${Utils.escapeHTML(pm.name)}</option>`
             ).join('')}
           </select>
         </div>
@@ -157,8 +157,8 @@
                 <tr>
                   <td class="text-text-muted">${Utils.formatDateShort(exp.date)}</td>
                   <td>
-                    <div class="font-medium text-text-main">${exp.description}</div>
-                    ${exp.notes ? `<div class="text-xs text-text-muted mt-1">${exp.notes}</div>` : ''}
+                    <div class="font-medium text-text-main">${Utils.escapeHTML(exp.description)}</div>
+                    ${exp.notes ? `<div class="text-xs text-text-muted mt-1">${Utils.escapeHTML(exp.notes)}</div>` : ''}
                   </td>
                   <td>
                     <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-surface-alt text-text-main border border-border">
@@ -167,16 +167,16 @@
                   </td>
                   <td>
                     <span class="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-surface-alt text-text-main border border-border">
-                      <span class="mr-1.5">${pm.icon}</span> ${pm.name}
+                      <span class="mr-1.5">${pm.icon}</span> ${Utils.escapeHTML(pm.name)}
                     </span>
                   </td>
                   <td class="text-right font-semibold font-mono text-text-main">${Utils.formatCurrency(exp.amount)}</td>
                   <td>
                     <div class="flex justify-end gap-2">
-                      <button class="text-text-muted hover:text-accent transition-colors" onclick="Expenses.openEditModal('${exp.id}')" title="Editar">
+                      <button class="text-text-muted hover:text-accent transition-colors" data-action="edit" data-expense-id="${Utils.escapeHTML(exp.id)}" title="Editar">
                         <span class="material-symbols-outlined text-[20px]">edit</span>
                       </button>
-                      <button class="text-text-muted hover:text-danger transition-colors" onclick="Expenses.confirmDelete('${exp.id}')" title="Eliminar">
+                      <button class="text-text-muted hover:text-danger transition-colors" data-action="delete" data-expense-id="${Utils.escapeHTML(exp.id)}" title="Eliminar">
                         <span class="material-symbols-outlined text-[20px]">delete</span>
                       </button>
                     </div>
@@ -200,6 +200,14 @@
       </div>
     `;
 
+    container.querySelectorAll('button[data-expense-id]').forEach(button => {
+      button.addEventListener('click', () => {
+        const id = button.dataset.expenseId;
+        if (button.dataset.action === 'edit') openEditModal(id);
+        else confirmDelete(id);
+      });
+    });
+
     // Bind sort events
     container.querySelectorAll('th[data-sort]').forEach(th => {
       th.addEventListener('click', () => {
@@ -219,6 +227,10 @@
    * Open the Add Expense modal
    */
   function openAddModal() {
+    if (!Storage.isReady()) {
+      Utils.showToast('Esperá a que se carguen los datos.', 'warning');
+      return;
+    }
     const { month, year } = window.App.getCurrentPeriod();
     const today = new Date();
     const defaultDate = `${year}-${String(month + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`;
@@ -258,16 +270,16 @@
       <form id="expense-form" class="space-y-4">
         <div>
           <label class="block text-sm font-medium text-text-main mb-1">Descripción *</label>
-          <input type="text" id="exp-description" value="${desc}" placeholder="Ej: Supermercado Carrefour" required class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent !m-0">
+          <input type="text" id="exp-description" value="${Utils.escapeHTML(desc)}" placeholder="Ej: Supermercado Carrefour" required class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent !m-0">
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-sm font-medium text-text-main mb-1">Monto *</label>
-            <input type="number" id="exp-amount" value="${amount}" placeholder="0" min="1" step="1" required class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent !m-0">
+            <input type="number" id="exp-amount" value="${Utils.escapeHTML(amount)}" placeholder="0" min="0.01" step="0.01" required class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent !m-0">
           </div>
           <div>
             <label class="block text-sm font-medium text-text-main mb-1">Fecha *</label>
-            <input type="date" id="exp-date" value="${date}" required class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent !m-0">
+            <input type="date" id="exp-date" value="${Utils.escapeHTML(date)}" required class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent !m-0">
           </div>
         </div>
         <div class="grid grid-cols-2 gap-4">
@@ -292,7 +304,7 @@
         </div>
         <div>
           <label class="block text-sm font-medium text-text-main mb-1">Notas (opcional)</label>
-          <textarea id="exp-notes" placeholder="Algún detalle adicional..." class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-y min-h-[80px] !m-0">${notes}</textarea>
+          <textarea id="exp-notes" placeholder="Algún detalle adicional..." class="w-full px-3 py-2 bg-white border border-border rounded-md text-sm focus:outline-none focus:border-accent focus:ring-1 focus:ring-accent resize-y min-h-[80px] !m-0">${Utils.escapeHTML(notes)}</textarea>
         </div>
       </form>
     `;
@@ -308,6 +320,10 @@
     });
 
     // Enter key to submit
+    document.getElementById('expense-form').addEventListener('submit', e => {
+      e.preventDefault();
+      saveExpense(isEdit ? expense.id : null);
+    });
     document.getElementById('expense-form').addEventListener('keydown', (e) => {
       if (e.key === 'Enter' && e.target.tagName !== 'TEXTAREA') {
         e.preventDefault();
@@ -347,16 +363,13 @@
 
     const expenseData = { description, amount, date, category, paymentMethod, notes };
 
-    if (editId) {
-      Storage.updateExpense(editId, expenseData);
-      Utils.showToast('Gasto actualizado correctamente', 'success');
-    } else {
-      Storage.addExpense(expenseData);
-      Utils.showToast('Gasto agregado correctamente', 'success');
-    }
-
-    window.App.closeModal();
-    window.App.refreshCurrentView();
+    Utils.runAction(document.getElementById('btn-save-expense'), async () => {
+      if (editId) await Storage.updateExpense(editId, expenseData);
+      else await Storage.addExpense(expenseData);
+      Utils.showToast(editId ? 'Gasto actualizado correctamente' : 'Gasto agregado correctamente', 'success');
+      window.App.closeModal();
+      window.App.refreshCurrentView();
+    });
   }
 
   /**
@@ -379,7 +392,7 @@
           <span class="material-symbols-outlined text-danger text-3xl">warning</span>
         </div>
         <p class="text-text-main mb-2">
-          ¿Estás seguro de que querés eliminar <strong>"${expense.description}"</strong>
+          ¿Estás seguro de que querés eliminar <strong>"${Utils.escapeHTML(expense.description)}"</strong>
           por <strong class="font-mono text-lg">${Utils.formatCurrency(expense.amount)}</strong>?
         </p>
         <p class="text-text-muted text-sm">
@@ -393,11 +406,13 @@
       <button class="btn btn-danger" id="btn-confirm-delete">Eliminar</button>
     `;
 
-    document.getElementById('btn-confirm-delete').addEventListener('click', () => {
-      Storage.deleteExpense(id);
-      Utils.showToast('Gasto eliminado', 'success');
-      window.App.closeModal();
-      window.App.refreshCurrentView();
+    document.getElementById('btn-confirm-delete').addEventListener('click', event => {
+      Utils.runAction(event.currentTarget, async () => {
+        await Storage.deleteExpense(id);
+        Utils.showToast('Gasto eliminado', 'success');
+        window.App.closeModal();
+        window.App.refreshCurrentView();
+      });
     });
 
     overlay.classList.add('show');

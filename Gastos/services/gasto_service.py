@@ -1,8 +1,8 @@
 from django.utils import timezone
-from django.utils.dateparse import parse_date
 
 from Gastos.models import Gasto
 from Gastos.repositories.gasto_repository import GastoRepository
+from Gastos.validation import expense_data
 
 
 class GastoService:
@@ -13,12 +13,10 @@ class GastoService:
         return [self.serializar(g) for g in self.gasto_repo.get_all()]
 
     def crear(self, datos):
-        # update_or_create para que la re-importación de datos no rompa por id repetido.
-        gasto = self.gasto_repo.get_by_id(datos['id'])
-        if gasto is None:
-            gasto = Gasto(id_gasto=datos['id'])
-        self._asignar(gasto, datos)
-        return self.gasto_repo.save(gasto)
+        fields = expense_data(datos)
+        identifier = fields.pop('id_gasto')
+        gasto, _ = Gasto.objects.update_or_create(pk=identifier, defaults=fields)
+        return gasto
 
     def actualizar(self, id_gasto, datos):
         gasto = self.gasto_repo.get_by_id(id_gasto)
@@ -39,15 +37,8 @@ class GastoService:
         self.gasto_repo.delete_all()
 
     def _asignar(self, gasto, datos):
-        fecha = parse_date(datos['date'])
-        if fecha is None:
-            raise ValueError(f"Fecha inválida: {datos.get('date')!r}")
-        gasto.Descripcion = datos['description']
-        gasto.Monto = datos['amount']
-        gasto.Categoria = datos['category']
-        gasto.MetodoPago = datos.get('paymentMethod', '')
-        gasto.Fecha = fecha
-        gasto.Notas = datos.get('notes', '')
+        for field, value in expense_data({**datos, 'id': gasto.pk}).items():
+            setattr(gasto, field, value)
 
     @staticmethod
     def serializar(gasto):

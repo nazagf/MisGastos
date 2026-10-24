@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from .views.datos_views import backup_view
 
 urlpatterns = [
     path('', views.inicio, name='inicio'),
@@ -8,4 +9,5 @@ urlpatterns = [
     path('api/expenses/<str:expense_id>', views.expense_detail, name='expense-detail'),
     path('api/budgets', views.budgets_collection, name='budgets'),
     path('api/settings', views.settings_view, name='settings'),
+    path('api/backup', backup_view, name='backup'),
 ]

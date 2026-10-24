@@ -10,6 +10,7 @@ class Presupuesto(models.Model):
 
     class Meta:
         ordering = ['AnioMes']
+        constraints = [models.CheckConstraint(condition=models.Q(Total__gte=0), name='presupuesto_total_no_negativo')]
 
     def __str__(self):
         return f"Presupuesto {self.AnioMes}"

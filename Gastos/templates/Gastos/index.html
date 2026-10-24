@@ -4,11 +4,12 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="csrf-token" content="{{ csrf_token }}">
   <title>MisGastos - Dashboard Financiero</title>
   <link rel="icon" href="{% static 'Gastos/favicon.svg' %}" type="image/svg+xml">
   
-  <!-- Tailwind CSS & Plugins -->
-  <script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+  <!-- Estilos compilados -->
+  <link rel="stylesheet" href="{% static 'Gastos/css/tailwind.css' %}">
   <!-- Material Symbols -->
   <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&display=swap" rel="stylesheet" />
   <!-- Google Fonts -->
@@ -17,41 +18,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet" />
   
   <!-- Chart.js -->
-  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+  <script src="{% static 'Gastos/vendor/chart.umd.js' %}" defer></script>
 
-  <!-- Tailwind Config from Brand Anchors -->
-  <script>
-    tailwind.config = {
-        theme: {
-            extend: {
-                colors: {
-                    primary: "#171310",        // warm ink
-                    "primary-light": "#3a332b",
-                    accent: "#a9781f",         // brass / gold — reserved
-                    gold: "#a9781f",
-                    "gold-soft": "#c99a3c",
-                    background: "#faf7f1",     // warm paper
-                    surface: "#ffffff",
-                    "surface-alt": "#f3ede2",
-                    border: "#e7ded0",
-                    text: {
-                        main: "#171310",
-                        muted: "#7c7365"
-                    },
-                    success: "#3f7a57",        // under budget
-                    warning: "#bd7a2a",        // approaching
-                    danger: "#b23a2e"          // over budget
-                },
-                fontFamily: {
-                    sans: ["Inter", "sans-serif"],
-                    display: ["Space Grotesk", "sans-serif"],
-                    mono: ["Space Grotesk", "ui-monospace", "SFMono-Regular", "Menlo", "monospace"]
-                }
-            }
-        }
-    }
-  </script>
-  
   <style>
     :root {
       --ink: #171310;
@@ -93,6 +61,7 @@
 
     .btn-primary { background: var(--ink); color: var(--paper); transition: all 0.18s ease; border-radius: 8px; padding: 9px 18px; font-weight: 500; font-size: 0.875rem; }
     .btn-primary:hover { background: #322a20; }
+    button:disabled { opacity: .6; cursor: wait; }
 
     .btn-accent { background: var(--gold); color: #1a1206; transition: all 0.18s ease; border-radius: 8px; padding: 9px 18px; font-weight: 600; }
     .btn-accent:hover { background: var(--gold-soft); }
@@ -220,6 +189,10 @@
   </div>
   
   <div class="px-4 mt-auto pt-6 border-t border-border">
+    <form method="post" action="{% url 'logout' %}" class="mb-4">
+      {% csrf_token %}
+      <button class="btn-secondary w-full py-2 rounded-md" type="submit">Cerrar sesión</button>
+    </form>
     <div class="flex justify-between items-center text-text-muted px-2">
       <button id="btn-prev-month" class="hover:text-primary material-symbols-outlined text-[20px]">chevron_left</button>
       <span id="month-label" class="text-sm font-medium text-text-main">Julio 2026</span>
@@ -238,7 +211,11 @@
     </button>
   </header>
 
-  <main class="flex-1 overflow-y-auto p-4 md:p-8">
+  <div id="load-status" role="status" class="p-8">
+    <p id="load-message">Cargando tus datos…</p>
+    <button id="retry-load" hidden class="btn-primary mt-4" onclick="location.reload()">Volver a intentar</button>
+  </div>
+  <main hidden class="flex-1 overflow-y-auto p-4 md:p-8">
     <div class="max-w-[1200px] mx-auto space-y-8">
 
       <!-- DASHBOARD -->
@@ -385,16 +362,16 @@
   </div>
 </div>
 
-<div class="toast-container" id="toast-container"></div>
+<div class="toast-container" id="toast-container" role="status" aria-live="polite"></div>
 
 <!-- Scripts (order matters: utils → storage → modules → app) -->
-<script src="{% static 'Gastos/js/utils.js' %}"></script>
-<script src="{% static 'Gastos/js/storage.js' %}"></script>
-<script src="{% static 'Gastos/js/dashboard.js' %}"></script>
-<script src="{% static 'Gastos/js/expenses.js' %}"></script>
-<script src="{% static 'Gastos/js/budgets.js' %}"></script>
-<script src="{% static 'Gastos/js/export.js' %}"></script>
-<script src="{% static 'Gastos/js/app.js' %}"></script>
+<script defer src="{% static 'Gastos/js/utils.js' %}"></script>
+<script defer src="{% static 'Gastos/js/storage.js' %}"></script>
+<script defer src="{% static 'Gastos/js/dashboard.js' %}"></script>
+<script defer src="{% static 'Gastos/js/expenses.js' %}"></script>
+<script defer src="{% static 'Gastos/js/budgets.js' %}"></script>
+<script defer src="{% static 'Gastos/js/export.js' %}"></script>
+<script defer src="{% static 'Gastos/js/app.js' %}"></script>
 
 </body>
 </html>

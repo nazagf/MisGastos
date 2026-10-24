@@ -1,0 +1,15 @@
+:root { color-scheme: light; font-family: system-ui, sans-serif; color: #171310; background: #faf7f1; }
+* { box-sizing: border-box; }
+body { min-height: 100svh; margin: 0; display: grid; place-items: center; padding: 24px; }
+.login-card { width: min(100%, 420px); background: #fff; padding: clamp(24px, 6vw, 40px); border: 1px solid #e7ded0; border-top: 3px solid #a9781f; border-radius: 12px; }
+.brand { color: #a9781f; font-weight: 700; margin: 0 0 24px; }
+h1 { font-size: 1.65rem; letter-spacing: -.035em; margin: 0 0 10px; }
+.intro, .private { color: #7c7365; line-height: 1.5; }
+.private { font-size: .8rem; margin: 24px 0 0; }
+label { display: block; font-size: .9rem; margin: 22px 0 8px; }
+input, button { font: inherit; width: 100%; padding: 12px; border-radius: 6px; }
+input { border: 1px solid #d9cfbe; background: white; }
+button { margin-top: 26px; background: #171310; color: #faf7f1; border: 0; cursor: pointer; font-weight: 600; }
+button:hover { background: #3a332b; }
+:focus-visible { outline: 3px solid #a9781f; outline-offset: 3px; }
+.error { background: #fff1ee; color: #9c3227; padding: 12px; border-radius: 6px; line-height: 1.5; }
